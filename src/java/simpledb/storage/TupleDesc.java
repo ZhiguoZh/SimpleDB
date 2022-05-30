@@ -37,14 +37,15 @@ public class TupleDesc implements Serializable {
         }
     }
 
+    private ArrayList<TDItem> tdItemList;
+
     /**
      * @return
      *        An iterator which iterates over all the field TDItems
      *        that are included in this TupleDesc
      * */
     public Iterator<TDItem> iterator() {
-        // some code goes here
-        return null;
+        return this.tdItemList.iterator();
     }
 
     private static final long serialVersionUID = 1L;
@@ -61,7 +62,12 @@ public class TupleDesc implements Serializable {
      *            be null.
      */
     public TupleDesc(Type[] typeAr, String[] fieldAr) {
-        // some code goes here
+        this.tdItemList = new ArrayList<>();
+
+        for (int i = 0; i < typeAr.length; ++i) {
+            String name = i < fieldAr.length ? fieldAr[i] : null;
+            this.tdItemList.add(new TDItem(typeAr[i], name));
+        }
     }
 
     /**
@@ -73,15 +79,18 @@ public class TupleDesc implements Serializable {
      *            TupleDesc. It must contain at least one entry.
      */
     public TupleDesc(Type[] typeAr) {
-        // some code goes here
+        this.tdItemList = new ArrayList<>();
+
+        for (int i = 0; i < typeAr.length; ++i) {
+            this.tdItemList.add(new TDItem(typeAr[i], null));
+        }
     }
 
     /**
      * @return the number of fields in this TupleDesc
      */
     public int numFields() {
-        // some code goes here
-        return 0;
+        return this.tdItemList.size();
     }
 
     /**
@@ -94,8 +103,9 @@ public class TupleDesc implements Serializable {
      *             if i is not a valid field reference.
      */
     public String getFieldName(int i) throws NoSuchElementException {
-        // some code goes here
-        return null;
+        if (i >= this.tdItemList.size()) throw new NoSuchElementException();
+
+        return this.tdItemList.get(i).fieldName;
     }
 
     /**
@@ -109,8 +119,9 @@ public class TupleDesc implements Serializable {
      *             if i is not a valid field reference.
      */
     public Type getFieldType(int i) throws NoSuchElementException {
-        // some code goes here
-        return null;
+        if (i >= this.tdItemList.size()) throw new NoSuchElementException();
+
+        return this.tdItemList.get(i).fieldType;
     }
 
     /**
@@ -123,8 +134,13 @@ public class TupleDesc implements Serializable {
      *             if no field with a matching name is found.
      */
     public int fieldNameToIndex(String name) throws NoSuchElementException {
-        // some code goes here
-        return 0;
+        for (int i = 0; i < tdItemList.size(); ++i) {
+            String fieldName = tdItemList.get(i).fieldName;
+            if (fieldName != null && fieldName.equals(name))
+                return i;
+        }
+
+        throw new NoSuchElementException();
     }
 
     /**
@@ -132,8 +148,13 @@ public class TupleDesc implements Serializable {
      *         Note that tuples from a given TupleDesc are of a fixed size.
      */
     public int getSize() {
-        // some code goes here
-        return 0;
+        int sz = 0;
+
+        for (TDItem item: tdItemList) {
+            sz += item.fieldType.getLen();
+        }
+
+        return sz;
     }
 
     /**
@@ -147,8 +168,11 @@ public class TupleDesc implements Serializable {
      * @return the new TupleDesc
      */
     public static TupleDesc merge(TupleDesc td1, TupleDesc td2) {
-        // some code goes here
-        return null;
+        TupleDesc td = new TupleDesc(new Type[]{}, new String[]{});
+
+        td.tdItemList.addAll(td1.tdItemList);
+        td.tdItemList.addAll(td2.tdItemList);
+        return td;
     }
 
     /**
@@ -163,8 +187,19 @@ public class TupleDesc implements Serializable {
      */
 
     public boolean equals(Object o) {
-        // some code goes here
-        return false;
+        if (this == o) return true;
+        if (o == null) return false;
+        if (getClass() != o.getClass()) return false;
+
+        TupleDesc other = (TupleDesc) o;
+        if (this.numFields() != other.numFields()) return false;
+
+        for (int i = 0; i < this.numFields(); ++i) {
+            if (this.tdItemList.get(i).fieldType != (other.tdItemList.get(i).fieldType))
+                return false;
+        }
+
+        return true;
     }
 
     public int hashCode() {
