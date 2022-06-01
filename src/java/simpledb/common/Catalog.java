@@ -11,6 +11,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /**
  * The Catalog keeps track of all available tables in the database and their
@@ -22,13 +23,26 @@ import java.util.concurrent.ConcurrentHashMap;
  * @Threadsafe
  */
 public class Catalog {
+    public static class LogItem {
+        public final DbFile file;
+        public final String name;
+        public final String pk;
+
+        LogItem(DbFile file, String name, String pk) {
+            this.file = file;
+            this.name = name;
+            this.pk = pk;
+        }
+    }
+
+    ArrayList<LogItem> logItems;
 
     /**
      * Constructor.
      * Creates a new, empty catalog.
      */
     public Catalog() {
-        // some code goes here
+        this.logItems = new ArrayList<>();
     }
 
     /**
@@ -41,7 +55,14 @@ public class Catalog {
      * @param pkeyField the name of the primary key field
      */
     public void addTable(DbFile file, String name, String pkeyField) {
-        // some code goes here
+        for (int i = 0; i < this.logItems.size(); ++i) {
+            LogItem logItem = this.logItems.get(i);
+            if (logItem.file.getId() == file.getId() || logItem.name.equals(name)) {
+                this.logItems.set(i, new LogItem(file, name, pkeyField));
+                return;
+            }
+        }
+        this.logItems.add(new LogItem(file, name, pkeyField));
     }
 
     public void addTable(DbFile file, String name) {
@@ -64,8 +85,11 @@ public class Catalog {
      * @throws NoSuchElementException if the table doesn't exist
      */
     public int getTableId(String name) throws NoSuchElementException {
-        // some code goes here
-        return 0;
+        for (int i = 0; i < logItems.size(); ++i) {
+            LogItem logItem = logItems.get(i);
+            if (logItem.name.equals(name)) return logItem.file.getId();
+        }
+        throw new NoSuchElementException();
     }
 
     /**
@@ -75,8 +99,11 @@ public class Catalog {
      * @throws NoSuchElementException if the table doesn't exist
      */
     public TupleDesc getTupleDesc(int tableid) throws NoSuchElementException {
-        // some code goes here
-        return null;
+        for (int i = 0; i < logItems.size(); ++i) {
+            LogItem logItem = logItems.get(i);
+            if (logItem.file.getId() == tableid) return logItem.file.getTupleDesc();
+        }
+        throw new NoSuchElementException();
     }
 
     /**
@@ -86,28 +113,36 @@ public class Catalog {
      *     function passed to addTable
      */
     public DbFile getDatabaseFile(int tableid) throws NoSuchElementException {
-        // some code goes here
-        return null;
+        for (int i = 0; i < logItems.size(); ++i) {
+            LogItem logItem = logItems.get(i);
+            if (logItem.file.getId() == tableid) return logItem.file;
+        }
+        throw new NoSuchElementException();
     }
 
     public String getPrimaryKey(int tableid) {
-        // some code goes here
+        for (int i = 0; i < logItems.size(); ++i) {
+            LogItem logItem = logItems.get(i);
+            if (logItem.file.getId() == tableid) return logItem.pk;
+        }
         return null;
     }
 
     public Iterator<Integer> tableIdIterator() {
-        // some code goes here
-        return null;
+        return this.logItems.stream().map(logItem -> logItem.file.getId()).collect(Collectors.toList()).iterator();
     }
 
     public String getTableName(int id) {
-        // some code goes here
+        for (int i = 0; i < logItems.size(); ++i) {
+            LogItem logItem = logItems.get(i);
+            if (logItem.file.getId() == id) return logItem.name;
+        }
         return null;
     }
     
     /** Delete all tables from the catalog */
     public void clear() {
-        // some code goes here
+        this.logItems = new ArrayList<>();
     }
     
     /**
