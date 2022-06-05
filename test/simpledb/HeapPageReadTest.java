@@ -93,6 +93,7 @@ public class HeapPageReadTest extends SimpleDbTestBase {
         int row = 0;
         while (it.hasNext()) {
             Tuple tup = it.next();
+            System.out.println(tup);
             IntField f0 = (IntField) tup.getField(0);
             IntField f1 = (IntField) tup.getField(1);
 

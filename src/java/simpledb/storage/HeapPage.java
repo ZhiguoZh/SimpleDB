@@ -8,6 +8,8 @@ import simpledb.transaction.TransactionId;
 
 import java.util.*;
 import java.io.*;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Each instance of HeapPage stores data for one page of HeapFiles and 
@@ -71,9 +73,8 @@ public class HeapPage implements Page {
     /** Retrieve the number of tuples on this page.
         @return the number of tuples on this page
     */
-    private int getNumTuples() {        
-        // some code goes here
-        return 0;
+    private int getNumTuples() {
+        return (int) Math.floor(8 * Database.getBufferPool().getPageSize() / (td.getSize() * 8 + 1));
 
     }
 
@@ -83,8 +84,7 @@ public class HeapPage implements Page {
      */
     private int getHeaderSize() {        
         
-        // some code goes here
-        return 0;
+        return (int) Math.ceil(this.getNumTuples() / 8);
                  
     }
     
@@ -117,8 +117,7 @@ public class HeapPage implements Page {
      * @return the PageId associated with this page.
      */
     public HeapPageId getId() {
-    // some code goes here
-    throw new UnsupportedOperationException("implement this");
+        return this.pid;
     }
 
     /**
@@ -287,16 +286,57 @@ public class HeapPage implements Page {
      * Returns the number of empty slots on this page.
      */
     public int getNumEmptySlots() {
-        // some code goes here
-        return 0;
+        int sz = getNumTuples();
+        int numSetBits[] = {
+            0, 1, 1, 2, 1, 2, 2, 3,
+            1, 2, 2, 3, 2, 3, 3, 4,
+            1, 2, 2, 3, 2, 3, 3, 4,
+            2, 3, 3, 4, 3, 4, 4, 5,
+            1, 2, 2, 3, 2, 3, 3, 4,
+            2, 3, 3, 4, 3, 4, 4, 5,
+            2, 3, 3, 4, 3, 4, 4, 5,
+            3, 4, 4, 5, 4, 5, 5, 6,
+            1, 2, 2, 3, 2, 3, 3, 4,
+            2, 3, 3, 4, 3, 4, 4, 5,
+            2, 3, 3, 4, 3, 4, 4, 5,
+            3, 4, 4, 5, 4, 5, 5, 6,
+            2, 3, 3, 4, 3, 4, 4, 5,
+            3, 4, 4, 5, 4, 5, 5, 6,
+            3, 4, 4, 5, 4, 5, 5, 6,
+            4, 5, 5, 6, 5, 6, 6, 7,
+            1, 2, 2, 3, 2, 3, 3, 4,
+            2, 3, 3, 4, 3, 4, 4, 5,
+            2, 3, 3, 4, 3, 4, 4, 5,
+            3, 4, 4, 5, 4, 5, 5, 6,
+            2, 3, 3, 4, 3, 4, 4, 5,
+            3, 4, 4, 5, 4, 5, 5, 6,
+            3, 4, 4, 5, 4, 5, 5, 6,
+            4, 5, 5, 6, 5, 6, 6, 7,
+            2, 3, 3, 4, 3, 4, 4, 5,
+            3, 4, 4, 5, 4, 5, 5, 6,
+            3, 4, 4, 5, 4, 5, 5, 6,
+            4, 5, 5, 6, 5, 6, 6, 7,
+            3, 4, 4, 5, 4, 5, 5, 6,
+            4, 5, 5, 6, 5, 6, 6, 7,
+            4, 5, 5, 6, 5, 6, 6, 7,
+            5, 6, 6, 7, 6, 7, 7, 8
+        };
+
+        int numEmptySlots = 0;
+        for (int i = 0; i < sz; i += 8) {
+            int mask = (sz - i >= 8) ? 0xFF : (~(1 << (sz - i) - 1));
+            numEmptySlots += 8 - numSetBits[header[i / 8] & mask];
+        }
+
+        return numEmptySlots;
     }
 
     /**
      * Returns true if associated slot on this page is filled.
      */
     public boolean isSlotUsed(int i) {
-        // some code goes here
-        return false;
+        if (i >= getNumTuples()) return false;
+        return (header[i / 8] & (1 << (i % 8))) != 0;
     }
 
     /**
@@ -312,8 +352,11 @@ public class HeapPage implements Page {
      * (note that this iterator shouldn't return tuples in empty slots!)
      */
     public Iterator<Tuple> iterator() {
-        // some code goes here
-        return null;
+        return IntStream.range(0, tuples.length)
+                .filter(i -> isSlotUsed(i))
+                .mapToObj(i -> tuples[i])
+                .collect(Collectors.toList())
+                .iterator();
     }
 
 }

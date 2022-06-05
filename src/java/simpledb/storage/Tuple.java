@@ -1,10 +1,7 @@
 package simpledb.storage;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -30,7 +27,7 @@ public class Tuple implements Serializable {
 
     public Tuple(TupleDesc td) {
         this.tupleDesc = td;
-        this.fields = new ArrayList<>(td.numFields());
+        this.fields = new ArrayList<>(Collections.nCopies(td.numFields(), null));
     }
 
     /**
