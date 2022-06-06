@@ -22,6 +22,8 @@ import java.util.*;
  */
 public class HeapFile implements DbFile {
 
+    File f;
+    TupleDesc td;
     /**
      * Constructs a heap file backed by the specified file.
      * 
@@ -30,7 +32,8 @@ public class HeapFile implements DbFile {
      *            file.
      */
     public HeapFile(File f, TupleDesc td) {
-        // some code goes here
+        this.f = f;
+        this.td = td;
     }
 
     /**
@@ -39,8 +42,7 @@ public class HeapFile implements DbFile {
      * @return the File backing this HeapFile on disk.
      */
     public File getFile() {
-        // some code goes here
-        return null;
+        return f;
     }
 
     /**
@@ -53,8 +55,7 @@ public class HeapFile implements DbFile {
      * @return an ID uniquely identifying this HeapFile.
      */
     public int getId() {
-        // some code goes here
-        throw new UnsupportedOperationException("implement this");
+        return f.getAbsolutePath().hashCode();
     }
 
     /**
@@ -63,14 +64,25 @@ public class HeapFile implements DbFile {
      * @return TupleDesc of this DbFile.
      */
     public TupleDesc getTupleDesc() {
-        // some code goes here
-        throw new UnsupportedOperationException("implement this");
+        return this.td;
     }
 
     // see DbFile.java for javadocs
     public Page readPage(PageId pid) {
-        // some code goes here
-        return null;
+        int pgSize = BufferPool.getPageSize();
+        if (pid.getTableId() != getId() || pid.getPageNumber() * pgSize >= f.length()) return null;
+
+        try {
+            RandomAccessFile raf = new RandomAccessFile(f, "r");
+            byte[] data = new byte[pgSize];
+            raf.seek(pid.getPageNumber() * pgSize);
+            raf.read(data, 0, pgSize);
+
+            return new HeapPage(new HeapPageId(pid.getTableId(), pid.getPageNumber()), data);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     // see DbFile.java for javadocs
@@ -83,8 +95,7 @@ public class HeapFile implements DbFile {
      * Returns the number of pages in this HeapFile.
      */
     public int numPages() {
-        // some code goes here
-        return 0;
+        return (int) (f.length() + BufferPool.getPageSize() - 1) / BufferPool.getPageSize();
     }
 
     // see DbFile.java for javadocs
@@ -105,9 +116,59 @@ public class HeapFile implements DbFile {
 
     // see DbFile.java for javadocs
     public DbFileIterator iterator(TransactionId tid) {
-        // some code goes here
-        return null;
+        return new HeapFileIterator(tid, this);
     }
 
+}
+
+class HeapFileIterator extends AbstractDbFileIterator {
+    Iterator<Tuple> it = null;
+    HeapPage curp = null;
+    int pageNo = 0;
+
+    final TransactionId tid;
+    final HeapFile f;
+
+    public HeapFileIterator(TransactionId tid, HeapFile f) {
+        this.tid = tid;
+        this.f = f;
+    }
+
+    @Override
+    public void open() throws DbException, TransactionAbortedException {
+        curp = (HeapPage) Database.getBufferPool()
+                .getPage(this.tid, new HeapPageId(f.getId(), pageNo), Permissions.READ_ONLY);
+        it = curp.iterator();
+    }
+
+    @Override
+    protected Tuple readNext() throws DbException, TransactionAbortedException {
+        if (it != null && !it.hasNext()) it = null;
+
+        while (it == null && curp != null) {
+            if (pageNo + 1 == f.numPages()) curp = null;
+            else {
+                curp = (HeapPage) Database.getBufferPool()
+                        .getPage(this.tid, new HeapPageId(f.getId(), ++pageNo), Permissions.READ_ONLY);
+                it = curp.iterator();
+                if (!it.hasNext()) it = null;
+            }
+        }
+
+        return it == null ? null : it.next();
+    }
+
+    @Override
+    public void rewind() throws DbException, TransactionAbortedException {
+        close();
+        open();
+    }
+
+    @Override
+    public void close() {
+        super.close();
+        it = null;
+        curp = null;
+    }
 }
 
