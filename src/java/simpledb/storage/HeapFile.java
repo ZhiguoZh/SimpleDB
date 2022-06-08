@@ -136,6 +136,7 @@ class HeapFileIterator extends AbstractDbFileIterator {
 
     @Override
     public void open() throws DbException, TransactionAbortedException {
+        pageNo = 0;
         curp = (HeapPage) Database.getBufferPool()
                 .getPage(this.tid, new HeapPageId(f.getId(), pageNo), Permissions.READ_ONLY);
         it = curp.iterator();
@@ -167,6 +168,7 @@ class HeapFileIterator extends AbstractDbFileIterator {
     @Override
     public void close() {
         super.close();
+        pageNo = 0;
         it = null;
         curp = null;
     }
